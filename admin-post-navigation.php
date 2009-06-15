@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Admin Post Navigation
-Version: 1.0
+Version: 1.1
 Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation
 Author: Scott Reilly
 Author URI: http://coffee2code.com
@@ -11,13 +11,13 @@ This plugin adds "<< Previous" and "Next >>" links to the "Edit Post" admin page
 present, respectively.  The link titles (visible when hovering over the links) reveal the title of the previous/next
 post.  The links link to the "Edit Post" admin page for the previous/next posts so that you may edit them.
 
-Currently, a previous/next post is determined by the next lower/higher valid post based on relative sequential post ID.
-Other post criteria such as post type (draft, pending, etc), publish date, post author, category, etc, are not taken
-into consideration when determining the previous or next post.
+Currently, a previous/next post is determined by the next lower/higher valid post based on relative sequential post ID
+and which the user can edit.  Other post criteria such as post type (draft, pending, etc), publish date, post author,
+category, etc, are not taken into consideration when determining the previous or next post.
     
 NOTE: Be sure to save the post currently being edited before navigating away to the previous/next post.
 
-Compatible with WordPress 2.6+, 2.7+.
+Compatible with WordPress 2.6+, 2.7+, 2.8+.
 
 =>> Read the accompanying readme.txt file for more information.  Also, visit the plugin's homepage
 =>> for more information and the latest updates
@@ -117,15 +117,37 @@ CSS;
 JS;
 	}
 
-	function query($type = '<') {
+	function query($type = '<', $offset = 0, $limit = 15) {
 		global $post_ID, $wpdb;
-		$sql = "SELECT * FROM $wpdb->posts WHERE post_type = 'post' ";
-		if ($post_ID) {
+		if ( $type != '<' )
+			$type = '>';
+		$offset = (int)$offset;
+		$limit = (int)$limit;
+
+		$sql = "SELECT ID, post_title FROM $wpdb->posts WHERE post_type = 'post' ";
+		if ( $post_ID )
 			$sql .= "AND ID $type $post_ID ";
-		}
 		$sort = $type == '<' ? 'DESC' : 'ASC';
-		$sql .= "ORDER BY post_date $sort LIMIT 1";
-		return $wpdb->get_row($sql);
+		$sql .= "ORDER BY post_date $sort LIMIT $offset, $limit";
+
+		// Find the first one the user can actually edit
+		$posts = $wpdb->get_results($sql);
+		$result = false;
+		if ( $posts ) {
+			foreach ($posts as $post) {
+				if ( current_user_can('edit_post', $post->ID) ) {
+					$result = $post;
+					break;
+				}
+			}
+			if ( !$result ) { // The fetch did not yield a post editable by user, so query again.
+				$offset += $limit;
+				// Double the limit each time (if haven't found a post yet, chances are we may not, so try to get through posts quicker)
+				$limit += $limit;
+				return $this->query($type, $offset, $limit);
+			}
+		}
+		return $result;
 	}
 
 	function next_post() {
