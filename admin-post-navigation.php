@@ -1,7 +1,12 @@
 <?php
+/**
+ * @package Admin_Post_Navigation
+ * @author Scott Reilly
+ * @version 1.1.1
+ */
 /*
 Plugin Name: Admin Post Navigation
-Version: 1.1
+Version: 1.1.1
 Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation
 Author: Scott Reilly
 Author URI: http://coffee2code.com
@@ -17,7 +22,7 @@ category, etc, are not taken into consideration when determining the previous or
     
 NOTE: Be sure to save the post currently being edited before navigating away to the previous/next post.
 
-Compatible with WordPress 2.6+, 2.7+, 2.8+.
+Compatible with WordPress 2.6+, 2.7+, 2.8+, 2.9+.
 
 =>> Read the accompanying readme.txt file for more information.  Also, visit the plugin's homepage
 =>> for more information and the latest updates
@@ -25,12 +30,12 @@ Compatible with WordPress 2.6+, 2.7+, 2.8+.
 Installation:
 
 1. Download the file http://coffee2code.com/wp-plugins/admin-post-navigation.zip and unzip it into your 
-/wp-content/plugins/ directory.
+/wp-content/plugins/ directory (or install via the built-in WordPress plugin installer).
 2. Activate the plugin through the 'Plugins' admin menu in WordPress
 */
 
 /*
-Copyright (c) 2008-2009 by Scott Reilly (aka coffee2code)
+Copyright (c) 2008-2010 by Scott Reilly (aka coffee2code)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
 files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, 
@@ -51,6 +56,9 @@ class AdminPostNavigation {
 	var $prev_text = '&laquo; Previous';
 	var $next_text = 'Next &raquo;';
 
+	/**
+	 * Class constructor: initializes class variables and adds actions and filters.
+	 */
 	function AdminPostNavigation() {
 		global $pagenow;
 		if ( is_admin() && 'post.php' == $pagenow ) {
@@ -67,6 +75,9 @@ class AdminPostNavigation {
 		add_meta_box('adminpostnav', 'Post Navigation', array(&$this, 'add_meta_box'), 'post', 'side', 'core');
 	}
 
+	/**
+	 * Adds the content for the post navigation meta_box.
+	 */
 	function add_meta_box( $object, $box ) {
 		global $post_ID;
 		$display = '';
@@ -89,6 +100,9 @@ class AdminPostNavigation {
 		echo apply_filters('admin_post_nav', $display);
 	}
 
+	/**
+	 * Outputs CSS within style tags
+	 */
 	function add_css() {
 		echo <<<CSS
 		<style type="text/css">
@@ -103,8 +117,14 @@ class AdminPostNavigation {
 CSS;
 	}
 
-	// For those with JS enabled, the navigation links are moved next to the "Edit Post" header and the plugin's meta_box is hidden.
-	// The fallback for non-JS people is that the plugin's meta_box is shown and the navigation links can be found there.
+	/**
+	 * Outputs the JavaScript used by the plugin.
+	 *
+	 * For those with JS enabled, the navigation links are moved next to the
+	 * "Edit Post" header and the plugin's meta_box is hidden.  The fallback
+	 * for non-JS people is that the plugin's meta_box is shown and the
+	 * navigation links can be found there.
+	 */
 	function add_js() {
 		echo <<<JS
 		<script type="text/javascript">
@@ -117,6 +137,20 @@ CSS;
 JS;
 	}
 
+	/**
+	 * Returns the previous or next post relative to the current post.
+	 *
+	 * Currently, a previous/next post is determined by the next lower/higher
+	 * valid post based on relative sequential post ID and which the user can
+	 * edit.  Other post criteria such as post type (draft, pending, etc),
+	 * publish date, post author, category, etc, are not taken into 
+	 * consideration when determining the previous or next post.
+	 *
+	 * @param string $type (optional) Either '<' or '>', indicating previous or next post, respectively. Default is '<'.
+	 * @param int $offset (optional) Offset. Default is 0.
+	 * @param int $limit (optional) Limit. Default is 15.
+	 * @return string
+	 */
 	function query($type = '<', $offset = 0, $limit = 15) {
 		global $post_ID, $wpdb;
 		if ( $type != '<' )
@@ -150,10 +184,24 @@ JS;
 		return $result;
 	}
 
+	/**
+	 * Returns the next post relative to the current post.
+	 *
+	 * A convenience function that calls query().
+	 *
+	 * @return object The next post object.
+	 */
 	function next_post() {
 		return $this->query('>');
 	}
 
+	/**
+	 * Returns the previous post relative to the current post.
+	 *
+	 * A convenience function that calls query().
+	 *
+	 * @return object The previous post object.
+	 */
 	function previous_post() {
 		return $this->query('<');
 	}
