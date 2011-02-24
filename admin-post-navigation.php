@@ -2,17 +2,17 @@
 /**
  * @package Admin_Post_Navigation
  * @author Scott Reilly
- * @version 1.5
+ * @version 1.6
  */
 /*
 Plugin Name: Admin Post Navigation
-Version: 1.5
+Version: 1.6
 Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation/
 Author: Scott Reilly
 Author URI: http://coffee2code.com
 Description: Adds links to the next and previous posts when editing a post in the WordPress admin.
 
-Compatible with WordPress 2.8+, 2.9+, 3.0+.
+Compatible with WordPress 2.8+, 2.9+, 3.0+, 3.1+.
 
 =>> Read the accompanying readme.txt file for instructions and documentation.
 =>> Also, visit the plugin's homepage for additional information and updates.
@@ -21,7 +21,7 @@ Compatible with WordPress 2.8+, 2.9+, 3.0+.
 */
 
 /*
-Copyright (c) 2008-2010 by Scott Reilly (aka coffee2code)
+Copyright (c) 2008-2011 by Scott Reilly (aka coffee2code)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
@@ -36,38 +36,57 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRA
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-if ( is_admin() && !class_exists( 'AdminPostNavigation' ) ) :
+if ( is_admin() && !class_exists( 'c2c_AdminPostNavigation' ) ) :
 
-class AdminPostNavigation {
-	var $prev_text = '';
-	var $next_text = '';
-
-	var $orderby = 'ID'; // Filterable later
-	var $post_statuses = array( 'draft', 'future', 'pending', 'private', 'publish' ); // Filterable later
+class c2c_AdminPostNavigation {
+	private static $prev_text = '';
+	private static $next_text = '';
+	private static $post_statuses     = array( 'draft', 'future', 'pending', 'private', 'publish' ); // Filterable later
+	private static $post_statuses_sql = '';
 
 	/**
 	 * Class constructor: initializes class variables and adds actions and filters.
 	 */
-	function AdminPostNavigation() {
+	public static function init() {
 		global $pagenow;
 		if ( 'post.php' == $pagenow ) {
-			$this->prev_text = __( '&laquo; Previous' );
-			$this->next_text = __( 'Next &raquo;' );
+			self::$prev_text = __( '&laquo; Previous' );
+			self::$next_text = __( 'Next &raquo;' );
 
-			add_action( 'admin_init', array( &$this,'admin_init' ) );
-			add_action( 'admin_head', array( &$this, 'add_css' ) );
-			add_action( 'admin_footer', array( &$this, 'add_js' ) );
+			add_action( 'admin_init',                 array( __CLASS__, 'admin_init' ) );
+			add_action( 'admin_head',                 array( __CLASS__, 'add_css' ) );
+			add_action( 'admin_print_footer_scripts', array( __CLASS__, 'add_js' ) );
 		}
 	}
 
 	/**
 	 * Initialize variables and meta_box
 	 */
-	function admin_init() {
-		$this->orderby = esc_sql( apply_filters( 'c2c_admin_post_navigation_orderby', $this->orderby ) ); // pre-1.5 this used to order by 'post_date'
-		$this->post_statuses = apply_filters( 'c2c_admin_post_navigation_post_statuses', $this->post_statuses );
-		$this->post_statuses = "'" . implode( "', '", array_map( 'esc_sql', $this->post_statuses ) ) . "'";
-		add_meta_box( 'adminpostnav', 'Post Navigation', array( &$this, 'add_meta_box' ), 'post', 'side', 'core' );
+	public static function admin_init() {
+		add_action( 'do_meta_boxes', array( __CLASS__, 'do_meta_box' ), 10, 3 ); /* For WP 3.0+ only support, change this to hook 'add_meta_boxes' */
+	}
+
+	/**
+	 * Register meta box
+	 *
+	 * By default, the navigation is present for all post types.  Filter
+	 * 'c2c_admin_post_navigation_post_types' to limit its use.
+	 *
+	 * @param string $post_type The post type
+	 * @param string $type The mode for the meta box (normal, advanced, or side)
+	 * @param WP_Post $post The post
+	 * @return void
+	 */
+	public static function do_meta_box( $post_type, $type, $post ) {
+		$post_statuses = apply_filters( 'c2c_admin_post_navigation_post_statuses', self::$post_statuses, $post_type, $post );
+
+		$post_types = apply_filters( 'c2c_admin_post_navigation_post_types', get_post_types() );
+		if ( !in_array( $post_type, $post_types ) )
+			return;
+
+		self::$post_statuses_sql = "'" . implode( "', '", array_map( 'esc_sql', $post_statuses ) ) . "'";
+		if ( in_array( $post->post_status, $post_statuses ) )
+			add_meta_box( 'adminpostnav', sprintf( '%s Navigation', strtoupper( $post_type ) ), array( __CLASS__, 'add_meta_box' ), $post_type, 'side', 'core' );
 	}
 
 	/**
@@ -77,23 +96,23 @@ class AdminPostNavigation {
 	 * @param array $box
 	 * @return void (Text is echoed.)
 	 */
-	function add_meta_box( $object, $box ) {
+	public static function add_meta_box( $object, $box ) {
 		global $post_ID;
 		$display = '';
 		$context = $object->post_type;
-		$prev = $this->previous_post();
+		$prev = self::previous_post();
 		if ( $prev ) {
-			$post_title = esc_attr( strip_tags( get_the_title( $prev->ID ) ) );
+			$post_title = esc_attr( strip_tags( get_the_title( $prev->ID ) ) ); /* If only the_title_attribute() accepted post ID as arg */
 			$display .= '<a href="' . get_edit_post_link( $prev->ID ) .
-				"\" id='admin-post-nav-prev' title='Previous $context: $post_title' class='admin-post-nav-prev'>{$this->prev_text}</a>";
+				"\" id='admin-post-nav-prev' title='Previous $context: $post_title' class='admin-post-nav-prev'>" . self::$prev_text . '</a>';
 		}
-		$next = $this->next_post();
+		$next = self::next_post();
 		if ( $next ) {
 			if ( !empty( $display ) )
 				$display .= ' | ';
-			$post_title = esc_attr( strip_tags( get_the_title( $next->ID ) ) );
+			$post_title = esc_attr( strip_tags( get_the_title( $next->ID ) ) );  /* If only the_title_attribute() accepted post ID as arg */
 			$display .= '<a href="' . get_edit_post_link( $next->ID ) .
-				"\" id='admin-post-nav-next' title='Next $context: $post_title' class='admin-post-nav-next'>{$this->next_text}</a>";
+				"\" id='admin-post-nav-next' title='Next $context: $post_title' class='admin-post-nav-next'>" . self::$next_text . '</a>';
 		}
 		$display = '<span id="admin-post-nav">' . $display . '</span>';
 		$display = apply_filters( 'admin_post_nav', $display ); /* Deprecated as of v1.5 */
@@ -103,7 +122,7 @@ class AdminPostNavigation {
 	/**
 	 * Outputs CSS within style tags
 	 */
-	function add_css() {
+	public static function add_css() {
 		echo <<<CSS
 		<style type="text/css">
 		#admin-post-nav {margin-left:20px;}
@@ -121,7 +140,7 @@ CSS;
 	 * for non-JS people is that the plugin's meta_box is shown and the
 	 * navigation links can be found there.
 	 */
-	function add_js() {
+	public static function add_js() {
 		echo <<<JS
 		<script type="text/javascript">
 		jQuery(document).ready(function($) {
@@ -147,21 +166,32 @@ JS;
 	 * @param int $limit (optional) Limit. Default is 15.
 	 * @return string
 	 */
-	function query( $type = '<', $offset = 0, $limit = 15 ) {
+	public static function query( $type = '<', $offset = 0, $limit = 15 ) {
 		global $post_ID, $wpdb;
 
 		if ( $type != '<' )
 			$type = '>';
 		$offset = (int) $offset;
-		$limit = (int) $limit;
+		$limit  = (int) $limit;
 
-		$sql = "SELECT ID, post_title FROM $wpdb->posts WHERE post_type = 'post' AND post_status IN ({$this->post_statuses}) ";
-		if ( $post_ID )
-			$sql .= "AND ID $type $post_ID ";
+		$post_type = esc_sql( get_post_type( $post_ID ) );
+		$sql = "SELECT ID, post_title FROM $wpdb->posts WHERE post_type = '$post_type' AND post_status IN (" . self::$post_statuses_sql . ') ';
+
+		// Determine order
+		if ( function_exists( 'is_post_type_hierarchical' ) && is_post_type_hierarchical( $post_type ) )
+			$orderby = 'post_title';
+		else
+			$orderby = 'ID';
+		$orderby = esc_sql( apply_filters( 'c2c_admin_post_navigation_orderby', $orderby, $post_type ) );
+		$post = get_post( $post_ID );
+		$sql .= "AND $orderby $type '{$post->$orderby}' ";
+
 		$sort = $type == '<' ? 'DESC' : 'ASC';
-		$sql .= "ORDER BY {$this->orderby} $sort LIMIT $offset, $limit";
+		$sql .= "ORDER BY $orderby $sort LIMIT $offset, $limit";
 
 		// Find the first one the user can actually edit
+//echo "<p>query $type : ($sql)</p>";
+//die();
 		$posts = $wpdb->get_results( $sql );
 		$result = false;
 		if ( $posts ) {
@@ -175,7 +205,7 @@ JS;
 				$offset += $limit;
 				// Double the limit each time (if haven't found a post yet, chances are we may not, so try to get through posts quicker)
 				$limit += $limit;
-				return $this->query( $type, $offset, $limit );
+				return self::query( $type, $offset, $limit );
 			}
 		}
 		return $result;
@@ -188,8 +218,8 @@ JS;
 	 *
 	 * @return object The next post object.
 	 */
-	function next_post() {
-		return $this->query( '>' );
+	public static function next_post() {
+		return self::query( '>' );
 	}
 
 	/**
@@ -199,13 +229,13 @@ JS;
 	 *
 	 * @return object The previous post object.
 	 */
-	function previous_post() {
-		return $this->query( '<' );
+	public static function previous_post() {
+		return self::query( '<' );
 	}
 
-} // end AdminPostNavigation
+} // end c2c_AdminPostNavigation
 
-$GLOBALS['c2c_admin_post_navigation'] = new AdminPostNavigation();
+c2c_AdminPostNavigation::init();
 
 endif; // end if !class_exists()
 

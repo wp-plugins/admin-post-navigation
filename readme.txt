@@ -1,11 +1,11 @@
 === Admin Post Navigation ===
 Contributors: coffee2code
 Donate link: http://coffee2code.com/donate
-Tags: admin, navigation, post, next, previous, edit, coffee2code
+Tags: admin, navigation, post, next, previous, edit, post types, coffee2code
 Requires at least: 2.8
-Tested up to: 3.0.1
-Stable tag: 1.5
-Version: 1.5
+Tested up to: 3.1
+Stable tag: 1.6
+Version: 1.6
 
 Adds links to the next and previous posts when editing a post in the WordPress admin.
 
@@ -20,11 +20,14 @@ Currently, a previous/next post is determined by the next lower/higher valid pos
 
 NOTE: Be sure to save the post currently being edited before navigating away to the previous/next post.
 
+Links: [Plugin Homepage]:(http://coffee2code.com/wp-plugins/admin-post-navigation/) | [Author Homepage]:(http://coffee2code.com)
+
 
 == Installation ==
 
 1. Unzip `admin-post-navigation.zip` inside the `/wp-content/plugins/` directory for your site (or install via the built-in WordPress plugin installer)
 1. Activate the plugin through the 'Plugins' admin menu in WordPress
+1. See documentation for available customizations, if so inclined
 
 
 == Screenshots ==
@@ -39,7 +42,7 @@ The plugin is further customizable via three filters. Typically, these customiza
 
 = c2c_admin_post_navigation_orderby =
 
-The 'c2c_admin_post_navigation_orderby' filter allows you to change the post field used in the ORDER BY clause for the SQL to find the previous/next post.  By default this is 'ID'.  If you wish to change this, hook this filter.  This is not typical usage for most users.
+The 'c2c_admin_post_navigation_orderby' filter allows you to change the post field used in the ORDER BY clause for the SQL to find the previous/next post.  By default this is 'ID' for non-hierarchical post types (such as posts) and 'post_title' for hierarchical post types (such as pages).  If you wish to change this, hook this filter.  This is not typical usage for most users.
 
 Arguments:
 
@@ -69,6 +72,30 @@ function change_apn_post_status( $post_statuses ) {
 	return $post_statuses;
 }`
 
+= c2c_admin_post_navigation_post_types =
+
+The 'c2c_admin_post_navigation_post_types' filter allows you to modify the list of post_types used as part of the search for the prev/next post.  By default this array includes all available post types.  If you wish to change this, hook this filter.
+
+Arguments:
+
+* $post_types (array) The array of valid post_types
+
+Examples:
+
+`// Modify Admin Post Navigation to only allow navigating strictly for posts.
+add_filter( 'c2c_admin_post_navigation_post_types', 'change_apn_post_types' );
+function change_apn_post_types( $post_types ) {
+	return array( 'post' );
+}`
+
+`// Modify Admin Post Navigation to disallow navigation for the 'recipe' post type
+add_filter( 'c2c_admin_post_navigation_post_types', 'remove_recipe_apn_post_types' );
+function remove_recipe_apn_post_types( $post_types ) {
+	if ( isset( $post_types['recipe'] ) )
+		unset( $post_types['recipe'] ); // Removing a post type
+	return $post_types;
+}`
+
 = c2c_admin_post_navigation_display =
 
 The 'c2c_admin_post_navigation_display' filter allows you to customize the output links for the post navigation.
@@ -87,6 +114,23 @@ function override_apn_display( $text ) {
 
 
 == Changelog ==
+
+= 1.6 =
+* Add support for navigation in other post types
+    * Add filter 'c2c_admin_post_navigation_post_types' for customizing valid post_types for search
+    * Enable navigation for all post types by default
+    * Allow per-post_type sort order for navigation by adding $post_type argument when applying filters for 'c2c_admin_post_navigation_orderby'
+    * Pass additional arguments ($post_type and $post) to functions hooking 'c2c_admin_post_navigation_post_statuses'
+* Ensure post navigation only appears on posts of the appropriate post_status
+* For hierarchical post types, order by 'post_title', otherwise order by 'ID' (filterable)
+* Move application of filters from admin_init() into new do_meta_box(), which is hooking 'do_meta_box' action, so they only fire when actually being used
+* Output JavaScript via 'admin_print_footer_scripts' action rather than 'admin_footer'
+* Rename class from 'AdminPostNavigation' to 'c2c_AdminPostNavigation'
+* Switch from object instantiation to direct class invocation
+* Explicitly declare all functions public static and class variables private static
+* Documentation tweaks
+* Note compatibility through WP 3.1+
+* Update copyright date (2011)
 
 = 1.5 =
 * Change post search ORDER BY from 'post_date' to 'ID'
@@ -129,5 +173,8 @@ function override_apn_display( $text ) {
 
 == Upgrade Notice ==
 
+= 1.6 =
+Feature update: added support for non-'post' post types; fixed so navigation only appears for posts of appropriate post status; implementation changes; renamed class; updated copyright date; other minor code changes.
+
 = 1.5 =
-Recommended update. Highlights: find prev/next post by ID rather than post_date, added verified WP 3.0 compatibility.
+Recommended update. Highlights: find prev/next post by ID rather than post_date, fix navigation logic, added numerous filters to allow for customizations, miscellaneous improvements, dropped pre-WP 2.8 compatibility, added verified WP 3.0 compatibility.
