@@ -3,9 +3,9 @@ Contributors: coffee2code
 Donate link: http://coffee2code.com/donate
 Tags: admin, navigation, post, next, previous, edit, post types, coffee2code
 Requires at least: 2.8
-Tested up to: 3.1
-Stable tag: 1.6
-Version: 1.6
+Tested up to: 3.2
+Stable tag: 1.6.1
+Version: 1.6.1
 
 Adds links to the next and previous posts when editing a post in the WordPress admin.
 
@@ -20,7 +20,7 @@ Currently, a previous/next post is determined by the next lower/higher valid pos
 
 NOTE: Be sure to save the post currently being edited before navigating away to the previous/next post.
 
-Links: [Plugin Homepage]:(http://coffee2code.com/wp-plugins/admin-post-navigation/) | [Author Homepage]:(http://coffee2code.com)
+Links: [Plugin Homepage](http://coffee2code.com/wp-plugins/admin-post-navigation/) | [Author Homepage](http://coffee2code.com)
 
 
 == Installation ==
@@ -34,6 +34,13 @@ Links: [Plugin Homepage]:(http://coffee2code.com/wp-plugins/admin-post-navigatio
 
 1. A screenshot of the previous/next links adjacent to the 'Edit Post' admin page header when Javascript is enabled.
 2. A screenshot of the previous/next links in their own 'Edit Post' admin page sidebar panel when Javascript is disabled for the admin user.
+
+
+== Frequently Asked Questions ==
+
+= How do I change it so the previous/next links find the adjacent post according to post_date? =
+
+See the Filters section for the `c2c_admin_post_navigation_orderby` filter, which has just such an example.
 
 
 == Filters ==
@@ -65,12 +72,14 @@ Arguments:
 
 Example:
 
-`add_filter( 'c2c_admin_post_navigation_post_statuses', 'change_apn_post_status' );
+`
+add_filter( 'c2c_admin_post_navigation_post_statuses', 'change_apn_post_status' );
 function change_apn_post_status( $post_statuses ) {
 	$post_statuses[] = 'trash'; // Adding a post status
 	if ( isset( $post_statuses['future'] ) ) unset( $post_statuses['future'] ); // Removing a post status
 	return $post_statuses;
-}`
+}
+`
 
 = c2c_admin_post_navigation_post_types =
 
@@ -82,19 +91,23 @@ Arguments:
 
 Examples:
 
-`// Modify Admin Post Navigation to only allow navigating strictly for posts.
+`
+// Modify Admin Post Navigation to only allow navigating strictly for posts.
 add_filter( 'c2c_admin_post_navigation_post_types', 'change_apn_post_types' );
 function change_apn_post_types( $post_types ) {
 	return array( 'post' );
-}`
+}
+`
 
-`// Modify Admin Post Navigation to disallow navigation for the 'recipe' post type
+`
+// Modify Admin Post Navigation to disallow navigation for the 'recipe' post type
 add_filter( 'c2c_admin_post_navigation_post_types', 'remove_recipe_apn_post_types' );
 function remove_recipe_apn_post_types( $post_types ) {
 	if ( isset( $post_types['recipe'] ) )
 		unset( $post_types['recipe'] ); // Removing a post type
 	return $post_types;
-}`
+}
+`
 
 = c2c_admin_post_navigation_display =
 
@@ -106,14 +119,23 @@ Arguments:
 
 Example:
 
-`add_filter( 'c2c_admin_post_navigation_display', 'override_apn_display' );
+`
+add_filter( 'c2c_admin_post_navigation_display', 'override_apn_display' );
 function override_apn_display( $text ) {
 	// Simplistic example. You could preferably make the text bold using CSS.
 	return '<strong>' . $text . '</strong>';
-}`
+}
+`
 
 
 == Changelog ==
+
+= 1.6.1 =
+* Use ucfirst() instead of strtoupper() to capitalize post type name for metabox title
+* Note compatibility through WP 3.2+
+* Minor code formatting changes (spacing)
+* Add FAQ section to readme.txt
+* Fix plugin homepage and author links in description in readme.txt
 
 = 1.6 =
 * Add support for navigation in other post types
@@ -172,6 +194,9 @@ function override_apn_display( $text ) {
 
 
 == Upgrade Notice ==
+
+= 1.6.1 =
+Trivial update: noted compatibility through WP 3.2+
 
 = 1.6 =
 Feature update: added support for non-'post' post types; fixed so navigation only appears for posts of appropriate post status; implementation changes; renamed class; updated copyright date; other minor code changes.

@@ -2,22 +2,25 @@
 /**
  * @package Admin_Post_Navigation
  * @author Scott Reilly
- * @version 1.6
+ * @version 1.6.1
  */
 /*
 Plugin Name: Admin Post Navigation
-Version: 1.6
+Version: 1.6.1
 Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation/
 Author: Scott Reilly
 Author URI: http://coffee2code.com
 Description: Adds links to the next and previous posts when editing a post in the WordPress admin.
 
-Compatible with WordPress 2.8+, 2.9+, 3.0+, 3.1+.
+Compatible with WordPress 2.8+, 2.9+, 3.0+, 3.1+, 3.2+.
 
 =>> Read the accompanying readme.txt file for instructions and documentation.
 =>> Also, visit the plugin's homepage for additional information and updates.
 =>> Or visit: http://wordpress.org/extend/plugins/admin-post-navigation/
 
+TODO:
+	* Update screenshots for WP3.2
+	* L10n
 */
 
 /*
@@ -36,9 +39,10 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRA
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-if ( is_admin() && !class_exists( 'c2c_AdminPostNavigation' ) ) :
+if ( is_admin() && ! class_exists( 'c2c_AdminPostNavigation' ) ) :
 
 class c2c_AdminPostNavigation {
+
 	private static $prev_text = '';
 	private static $next_text = '';
 	private static $post_statuses     = array( 'draft', 'future', 'pending', 'private', 'publish' ); // Filterable later
@@ -86,7 +90,7 @@ class c2c_AdminPostNavigation {
 
 		self::$post_statuses_sql = "'" . implode( "', '", array_map( 'esc_sql', $post_statuses ) ) . "'";
 		if ( in_array( $post->post_status, $post_statuses ) )
-			add_meta_box( 'adminpostnav', sprintf( '%s Navigation', strtoupper( $post_type ) ), array( __CLASS__, 'add_meta_box' ), $post_type, 'side', 'core' );
+			add_meta_box( 'adminpostnav', sprintf( '%s Navigation', ucfirst( $post_type ) ), array( __CLASS__, 'add_meta_box' ), $post_type, 'side', 'core' );
 	}
 
 	/**
@@ -108,7 +112,7 @@ class c2c_AdminPostNavigation {
 		}
 		$next = self::next_post();
 		if ( $next ) {
-			if ( !empty( $display ) )
+			if ( ! empty( $display ) )
 				$display .= ' | ';
 			$post_title = esc_attr( strip_tags( get_the_title( $next->ID ) ) );  /* If only the_title_attribute() accepted post ID as arg */
 			$display .= '<a href="' . get_edit_post_link( $next->ID ) .
@@ -190,8 +194,6 @@ JS;
 		$sql .= "ORDER BY $orderby $sort LIMIT $offset, $limit";
 
 		// Find the first one the user can actually edit
-//echo "<p>query $type : ($sql)</p>";
-//die();
 		$posts = $wpdb->get_results( $sql );
 		$result = false;
 		if ( $posts ) {
@@ -201,7 +203,7 @@ JS;
 					break;
 				}
 			}
-			if ( !$result ) { // The fetch did not yield a post editable by user, so query again.
+			if ( ! $result ) { // The fetch did not yield a post editable by user, so query again.
 				$offset += $limit;
 				// Double the limit each time (if haven't found a post yet, chances are we may not, so try to get through posts quicker)
 				$limit += $limit;
