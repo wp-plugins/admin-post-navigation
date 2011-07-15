@@ -3,7 +3,7 @@ Contributors: coffee2code
 Donate link: http://coffee2code.com/donate
 Tags: admin, navigation, post, next, previous, edit, post types, coffee2code
 Requires at least: 2.8
-Tested up to: 3.2
+Tested up to: 3.2.1
 Stable tag: 1.6.1
 Version: 1.6.1
 
