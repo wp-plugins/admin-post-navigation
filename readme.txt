@@ -45,9 +45,9 @@ See the Filters section for the `c2c_admin_post_navigation_orderby` filter, whic
 
 == Filters ==
 
-The plugin is further customizable via three filters. Typically, these customizations would be put into your active theme's functions.php file, or used by another plugin.
+The plugin is further customizable via four filters. Typically, these customizations would be put into your active theme's functions.php file, or used by another plugin.
 
-= c2c_admin_post_navigation_orderby =
+= c2c_admin_post_navigation_orderby (filter) =
 
 The 'c2c_admin_post_navigation_orderby' filter allows you to change the post field used in the ORDER BY clause for the SQL to find the previous/next post.  By default this is 'ID' for non-hierarchical post types (such as posts) and 'post_title' for hierarchical post types (such as pages).  If you wish to change this, hook this filter.  This is not typical usage for most users.
 
@@ -62,7 +62,7 @@ function order_apn_by_post_date( $field ) {
 	return 'post_date';
 }`
 
-= c2c_admin_post_navigation_post_statuses =
+= c2c_admin_post_navigation_post_statuses (filter) =
 
 The 'c2c_admin_post_navigation_post_statuses' filter allows you to modify the list of post_statuses used as part of the search for the prev/next post.  By default this array includes 'draft', 'future', 'pending', 'private', and 'publish'.  If you wish to change this, hook this filter.  This is not typical usage for most users.
 
@@ -81,7 +81,7 @@ function change_apn_post_status( $post_statuses ) {
 }
 `
 
-= c2c_admin_post_navigation_post_types =
+= c2c_admin_post_navigation_post_types (filter) =
 
 The 'c2c_admin_post_navigation_post_types' filter allows you to modify the list of post_types used as part of the search for the prev/next post.  By default this array includes all available post types.  If you wish to change this, hook this filter.
 
@@ -109,7 +109,7 @@ function remove_recipe_apn_post_types( $post_types ) {
 }
 `
 
-= c2c_admin_post_navigation_display =
+= c2c_admin_post_navigation_display (filter) =
 
 The 'c2c_admin_post_navigation_display' filter allows you to customize the output links for the post navigation.
 
@@ -191,7 +191,6 @@ function override_apn_display( $text ) {
 
 = 1.0 =
 * Initial release
-
 
 
 == Upgrade Notice ==
