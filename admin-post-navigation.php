@@ -2,29 +2,27 @@
 /**
  * @package Admin_Post_Navigation
  * @author Scott Reilly
- * @version 1.6.1
+ * @version 1.7
  */
 /*
 Plugin Name: Admin Post Navigation
-Version: 1.6.1
+Version: 1.7
 Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation/
 Author: Scott Reilly
 Author URI: http://coffee2code.com
-Description: Adds links to the next and previous posts when editing a post in the WordPress admin.
+Text Domain: admin-post-navigation
+Domain Path: /lang/
+Description: Adds links to navigate to the next and previous posts when editing a post in the WordPress admin.
 
-Compatible with WordPress 2.8+, 2.9+, 3.0+, 3.1+, 3.2+.
+Compatible with WordPress 3.0+, 3.1+, 3.2+, 3.3+.
 
 =>> Read the accompanying readme.txt file for instructions and documentation.
 =>> Also, visit the plugin's homepage for additional information and updates.
 =>> Or visit: http://wordpress.org/extend/plugins/admin-post-navigation/
-
-TODO:
-	* Update screenshots for WP3.2
-	* L10n
 */
 
 /*
-Copyright (c) 2008-2011 by Scott Reilly (aka coffee2code)
+Copyright (c) 2008-2012 by Scott Reilly (aka coffee2code)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
@@ -47,27 +45,39 @@ class c2c_AdminPostNavigation {
 	private static $next_text = '';
 	private static $post_statuses     = array( 'draft', 'future', 'pending', 'private', 'publish' ); // Filterable later
 	private static $post_statuses_sql = '';
+	private static $textdomain        = 'admin-post-navigation';
+
+	/**
+	 * Returns version of the plugin.
+	 *
+	 * @since 1.7
+	 */
+	public static function version() {
+		return '1.7';
+	}
 
 	/**
 	 * Class constructor: initializes class variables and adds actions and filters.
 	 */
 	public static function init() {
-		global $pagenow;
-		if ( 'post.php' == $pagenow ) {
-			self::$prev_text = __( '&laquo; Previous' );
-			self::$next_text = __( 'Next &raquo;' );
-
-			add_action( 'admin_init',                 array( __CLASS__, 'admin_init' ) );
-			add_action( 'admin_head',                 array( __CLASS__, 'add_css' ) );
-			add_action( 'admin_print_footer_scripts', array( __CLASS__, 'add_js' ) );
-		}
+		add_action( 'load-post.php', array( __CLASS__, 'register_post_page_hooks' ) );
 	}
 
 	/**
-	 * Initialize variables and meta_box
+	 * Filters/actions to hook on the admin post.php page.
+	 *
+	 * @since 1.7
+	 *
 	 */
-	public static function admin_init() {
-		add_action( 'do_meta_boxes', array( __CLASS__, 'do_meta_box' ), 10, 3 ); /* For WP 3.0+ only support, change this to hook 'add_meta_boxes' */
+	public static function register_post_page_hooks() {
+		load_plugin_textdomain( self::$textdomain, false, basename( dirname( __FILE__ ) ) . DIRECTORY_SEPARATOR . 'lang' );
+
+		self::$prev_text = __( '&larr; Previous', self::$textdomain );
+		self::$next_text = __( 'Next &rarr;', self::$textdomain );
+
+		add_action( 'admin_enqueue_scripts',      array( __CLASS__, 'add_css' ) );
+		add_action( 'admin_print_footer_scripts', array( __CLASS__, 'add_js' ) );
+		add_action( 'do_meta_boxes',              array( __CLASS__, 'do_meta_box' ), 10, 3 );
 	}
 
 	/**
@@ -82,15 +92,15 @@ class c2c_AdminPostNavigation {
 	 * @return void
 	 */
 	public static function do_meta_box( $post_type, $type, $post ) {
-		$post_statuses = apply_filters( 'c2c_admin_post_navigation_post_statuses', self::$post_statuses, $post_type, $post );
-
 		$post_types = apply_filters( 'c2c_admin_post_navigation_post_types', get_post_types() );
-		if ( !in_array( $post_type, $post_types ) )
+		if ( ! in_array( $post_type, $post_types ) )
 			return;
 
+		$post_statuses = apply_filters( 'c2c_admin_post_navigation_post_statuses', self::$post_statuses, $post_type, $post );
 		self::$post_statuses_sql = "'" . implode( "', '", array_map( 'esc_sql', $post_statuses ) ) . "'";
+		$label = self::_get_post_type_label( $post_type );
 		if ( in_array( $post->post_status, $post_statuses ) )
-			add_meta_box( 'adminpostnav', sprintf( '%s Navigation', ucfirst( $post_type ) ), array( __CLASS__, 'add_meta_box' ), $post_type, 'side', 'core' );
+			add_meta_box( 'adminpostnav', sprintf( __( '%s Navigation', self::$textdomain ), ucfirst( $post_type ) ), array( __CLASS__, 'add_meta_box' ), $post_type, 'side', 'core' );
 	}
 
 	/**
@@ -103,24 +113,47 @@ class c2c_AdminPostNavigation {
 	public static function add_meta_box( $object, $box ) {
 		global $post_ID;
 		$display = '';
-		$context = $object->post_type;
+
+		$context = self::_get_post_type_label( $object->post_type );
+
 		$prev = self::previous_post();
 		if ( $prev ) {
-			$post_title = esc_attr( strip_tags( get_the_title( $prev->ID ) ) ); /* If only the_title_attribute() accepted post ID as arg */
-			$display .= '<a href="' . get_edit_post_link( $prev->ID ) .
-				"\" id='admin-post-nav-prev' title='Previous $context: $post_title' class='admin-post-nav-prev'>" . self::$prev_text . '</a>';
+			$post_title = strip_tags( get_the_title( $prev->ID ) ); /* If only the_title_attribute() accepted post ID as arg */
+			$display .= '<a href="' . get_edit_post_link( $prev->ID ) . '" id="admin-post-nav-prev" title="' .
+				esc_attr( sprintf( __( 'Previous %1$s: %2$s', self::$textdomain ), $context, $post_title ) ) .
+				'" class="admin-post-nav-prev add-new-h2">' . self::$prev_text . '</a>';
 		}
+
 		$next = self::next_post();
 		if ( $next ) {
 			if ( ! empty( $display ) )
-				$display .= ' | ';
-			$post_title = esc_attr( strip_tags( get_the_title( $next->ID ) ) );  /* If only the_title_attribute() accepted post ID as arg */
+				$display .= ' ';
+			$post_title = strip_tags( get_the_title( $next->ID ) );  /* If only the_title_attribute() accepted post ID as arg */
 			$display .= '<a href="' . get_edit_post_link( $next->ID ) .
-				"\" id='admin-post-nav-next' title='Next $context: $post_title' class='admin-post-nav-next'>" . self::$next_text . '</a>';
+				'" id="admin-post-nav-next" title="' .
+				esc_attr( sprintf( __( 'Next %1$s: %2$s', self::$textdomain ), $context, $post_title ) ).
+				'" class="admin-post-nav-next add-new-h2">' . self::$next_text . '</a>';
 		}
+
 		$display = '<span id="admin-post-nav">' . $display . '</span>';
 		$display = apply_filters( 'admin_post_nav', $display ); /* Deprecated as of v1.5 */
 		echo apply_filters( 'c2c_admin_post_navigation_display', $display );
+	}
+
+	/**
+	 * Gets label for post type.
+	 *
+	 * @since 1.7
+	 *
+	 * @param string $post_type The post_type
+	 * @return string The label for the post_type
+	 */
+	public static function _get_post_type_label( $post_type ) {
+		$label = $post_type;
+		$post_type_object = get_post_type_object( $label );
+		if ( is_object( $post_type_object ) )
+			$label = $post_type_object->labels->singular_name;
+		return strtolower( $label );
 	}
 
 	/**
@@ -130,6 +163,7 @@ class c2c_AdminPostNavigation {
 		echo <<<CSS
 		<style type="text/css">
 		#admin-post-nav {margin-left:20px;}
+		#adminpostnav #admin-post-nav {margin-left:0;}
 		h2 #admin-post-nav {font-size:0.6em;}
 		</style>
 
