@@ -2,39 +2,46 @@
 /**
  * @package Admin_Post_Navigation
  * @author Scott Reilly
- * @version 1.7
+ * @version 1.7.1
  */
 /*
 Plugin Name: Admin Post Navigation
-Version: 1.7
+Version: 1.7.1
 Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation/
 Author: Scott Reilly
-Author URI: http://coffee2code.com
+Author URI: http://coffee2code.com/
 Text Domain: admin-post-navigation
 Domain Path: /lang/
+License: GPLv2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Description: Adds links to navigate to the next and previous posts when editing a post in the WordPress admin.
 
-Compatible with WordPress 3.0+, 3.1+, 3.2+, 3.3+.
+Compatible with WordPress 3.0 through 3.4+.
 
 =>> Read the accompanying readme.txt file for instructions and documentation.
 =>> Also, visit the plugin's homepage for additional information and updates.
 =>> Or visit: http://wordpress.org/extend/plugins/admin-post-navigation/
+
+TODO:
+	* Add screen option allowing user selection of post navigation order
 */
 
 /*
-Copyright (c) 2008-2012 by Scott Reilly (aka coffee2code)
+	Copyright (c) 2008-2012 by Scott Reilly (aka coffee2code)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
-modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following conditions:
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 if ( is_admin() && ! class_exists( 'c2c_AdminPostNavigation' ) ) :
@@ -45,7 +52,6 @@ class c2c_AdminPostNavigation {
 	private static $next_text = '';
 	private static $post_statuses     = array( 'draft', 'future', 'pending', 'private', 'publish' ); // Filterable later
 	private static $post_statuses_sql = '';
-	private static $textdomain        = 'admin-post-navigation';
 
 	/**
 	 * Returns version of the plugin.
@@ -53,7 +59,7 @@ class c2c_AdminPostNavigation {
 	 * @since 1.7
 	 */
 	public static function version() {
-		return '1.7';
+		return '1.7.1';
 	}
 
 	/**
@@ -70,10 +76,10 @@ class c2c_AdminPostNavigation {
 	 *
 	 */
 	public static function register_post_page_hooks() {
-		load_plugin_textdomain( self::$textdomain, false, basename( dirname( __FILE__ ) ) . DIRECTORY_SEPARATOR . 'lang' );
+		load_plugin_textdomain( 'admin-post-navigation', false, basename( dirname( __FILE__ ) ) . DIRECTORY_SEPARATOR . 'lang' );
 
-		self::$prev_text = __( '&larr; Previous', self::$textdomain );
-		self::$next_text = __( 'Next &rarr;', self::$textdomain );
+		self::$prev_text = __( '&larr; Previous', 'admin-post-navigation' );
+		self::$next_text = __( 'Next &rarr;', 'admin-post-navigation' );
 
 		add_action( 'admin_enqueue_scripts',      array( __CLASS__, 'add_css' ) );
 		add_action( 'admin_print_footer_scripts', array( __CLASS__, 'add_js' ) );
@@ -100,7 +106,7 @@ class c2c_AdminPostNavigation {
 		self::$post_statuses_sql = "'" . implode( "', '", array_map( 'esc_sql', $post_statuses ) ) . "'";
 		$label = self::_get_post_type_label( $post_type );
 		if ( in_array( $post->post_status, $post_statuses ) )
-			add_meta_box( 'adminpostnav', sprintf( __( '%s Navigation', self::$textdomain ), ucfirst( $post_type ) ), array( __CLASS__, 'add_meta_box' ), $post_type, 'side', 'core' );
+			add_meta_box( 'adminpostnav', sprintf( __( '%s Navigation', 'admin-post-navigation' ), ucfirst( $post_type ) ), array( __CLASS__, 'add_meta_box' ), $post_type, 'side', 'core' );
 	}
 
 	/**
@@ -120,7 +126,7 @@ class c2c_AdminPostNavigation {
 		if ( $prev ) {
 			$post_title = strip_tags( get_the_title( $prev->ID ) ); /* If only the_title_attribute() accepted post ID as arg */
 			$display .= '<a href="' . get_edit_post_link( $prev->ID ) . '" id="admin-post-nav-prev" title="' .
-				esc_attr( sprintf( __( 'Previous %1$s: %2$s', self::$textdomain ), $context, $post_title ) ) .
+				esc_attr( sprintf( __( 'Previous %1$s: %2$s', 'admin-post-navigation' ), $context, $post_title ) ) .
 				'" class="admin-post-nav-prev add-new-h2">' . self::$prev_text . '</a>';
 		}
 
@@ -131,7 +137,7 @@ class c2c_AdminPostNavigation {
 			$post_title = strip_tags( get_the_title( $next->ID ) );  /* If only the_title_attribute() accepted post ID as arg */
 			$display .= '<a href="' . get_edit_post_link( $next->ID ) .
 				'" id="admin-post-nav-next" title="' .
-				esc_attr( sprintf( __( 'Next %1$s: %2$s', self::$textdomain ), $context, $post_title ) ).
+				esc_attr( sprintf( __( 'Next %1$s: %2$s', 'admin-post-navigation' ), $context, $post_title ) ).
 				'" class="admin-post-nav-next add-new-h2">' . self::$next_text . '</a>';
 		}
 
@@ -274,5 +280,3 @@ JS;
 c2c_AdminPostNavigation::init();
 
 endif; // end if !class_exists()
-
-?>

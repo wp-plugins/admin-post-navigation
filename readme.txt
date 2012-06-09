@@ -2,10 +2,12 @@
 Contributors: coffee2code
 Donate link: http://coffee2code.com/donate
 Tags: admin, navigation, post, next, previous, edit, post types, coffee2code
+License: GPLv2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.0
-Tested up to: 3.3
-Stable tag: 1.7
-Version: 1.7
+Tested up to: 3.4
+Stable tag: 1.7.1
+Version: 1.7.1
 
 Adds links to navigate to the next and previous posts when editing a post in the WordPress admin.
 
@@ -14,9 +16,9 @@ Adds links to navigate to the next and previous posts when editing a post in the
 
 Adds links to navigate to the next and previous posts when editing a post in the WordPress admin.
 
-This plugin adds "<< Previous" and "Next >>" links to the "Edit Post" admin page, if a previous and next post are present, respectively.  The link titles (visible when hovering over the links) reveal the title of the previous/next post.  The links link to the "Edit Post" admin page for the previous/next posts so that you may edit them.
+This plugin adds "&larr; Previous" and "Next &rarr;" links to the "Edit Post" admin page if a previous and next post are present, respectively.  The link titles (visible when hovering over the links) reveal the title of the previous/next post.  The links link to the "Edit Post" admin page for the previous/next posts so that you may edit them.
 
-Currently, a previous/next post is determined by the next lower/higher valid post based on relative sequential post ID and which the user can edit.  Other post criteria such as post type (draft, pending, etc), publish date, post author, category, etc, are not taken into consideration when determining the previous or next post.
+By default, a previous/next post is determined by the next lower/higher valid post based on relative sequential post ID and which the user can edit.  Other post criteria such as post type (draft, pending, etc), publish date, post author, category, etc, are not taken into consideration when determining the previous or next post. How posts are navigated, and post types and post statuses to restrict navigation can be customized via filters (see Filters section).
 
 NOTE: Be sure to save the post currently being edited before navigating away to the previous/next post.
 
@@ -130,10 +132,19 @@ function override_apn_display( $text ) {
 
 == Changelog ==
 
+= 1.7.1 =
+* Use string instead of variable to specify translation textdomain
+* Re-license as GPLv2 or later (from X11)
+* Add 'License' and 'License URI' header tags to readme.txt and plugin file
+* Add banner image for plugin page
+* Remove ending PHP close tag
+* Minor documentation tweaks
+* Note compatibility through WP 3.4+
+
 = 1.7 =
 * Add support for localization
-* Change to use post type label instead of post type name, when possible, in link title attribute
-* Change to use larr and rarr characters to denote direction of navigation
+* Use post type label instead of post type name, when possible, in link title attribute
+* Use larr/rarr characters to denote direction of navigation instead of larquo/rarquo
 * Enhanced styling of navigation links
 * Hook 'admin_enqueue_scripts' action instead of 'admin_head' to output CSS
 * Hook 'load-post.php' to add actions for the post.php page rather than using $pagenow
@@ -144,6 +155,7 @@ function override_apn_display( $text ) {
 * Note compatibility through WP 3.3+
 * Drop compatibility with versions of WP older than 3.0
 * Update screenshots for WP 3.3
+* Tweak plugin description
 * Add link to plugin directory page to readme.txt
 * Minor code reformatting
 * Minor readme.txt reformatting
@@ -213,6 +225,12 @@ function override_apn_display( $text ) {
 
 
 == Upgrade Notice ==
+
+= 1.7.1 =
+Trivial update: noted compatibility through WP 3.4+; explicitly stated license
+
+= 1.7 =
+Recommended update: enhanced styling of navigation links; added support for localization; noted compatibility through WP 3.3+; and more
 
 = 1.6.1 =
 Trivial update: noted compatibility through WP 3.2+
