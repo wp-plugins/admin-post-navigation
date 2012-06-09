@@ -2,116 +2,175 @@
 /**
  * @package Admin_Post_Navigation
  * @author Scott Reilly
- * @version 1.1.1
+ * @version 1.7.1
  */
 /*
 Plugin Name: Admin Post Navigation
-Version: 1.1.1
-Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation
+Version: 1.7.1
+Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation/
 Author: Scott Reilly
-Author URI: http://coffee2code.com
-Description: Adds links to the next and previous posts when editing a post in the WordPress admin.
+Author URI: http://coffee2code.com/
+Text Domain: admin-post-navigation
+Domain Path: /lang/
+License: GPLv2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Description: Adds links to navigate to the next and previous posts when editing a post in the WordPress admin.
 
-This plugin adds "<< Previous" and "Next >>" links to the "Edit Post" admin page, if a previous and next post are
-present, respectively.  The link titles (visible when hovering over the links) reveal the title of the previous/next
-post.  The links link to the "Edit Post" admin page for the previous/next posts so that you may edit them.
+Compatible with WordPress 3.0 through 3.4+.
 
-Currently, a previous/next post is determined by the next lower/higher valid post based on relative sequential post ID
-and which the user can edit.  Other post criteria such as post type (draft, pending, etc), publish date, post author,
-category, etc, are not taken into consideration when determining the previous or next post.
-    
-NOTE: Be sure to save the post currently being edited before navigating away to the previous/next post.
+=>> Read the accompanying readme.txt file for instructions and documentation.
+=>> Also, visit the plugin's homepage for additional information and updates.
+=>> Or visit: http://wordpress.org/extend/plugins/admin-post-navigation/
 
-Compatible with WordPress 2.6+, 2.7+, 2.8+, 2.9+.
-
-=>> Read the accompanying readme.txt file for more information.  Also, visit the plugin's homepage
-=>> for more information and the latest updates
-
-Installation:
-
-1. Download the file http://coffee2code.com/wp-plugins/admin-post-navigation.zip and unzip it into your 
-/wp-content/plugins/ directory (or install via the built-in WordPress plugin installer).
-2. Activate the plugin through the 'Plugins' admin menu in WordPress
+TODO:
+	* Add screen option allowing user selection of post navigation order
 */
 
 /*
-Copyright (c) 2008-2010 by Scott Reilly (aka coffee2code)
+	Copyright (c) 2008-2012 by Scott Reilly (aka coffee2code)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
-files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, 
-modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the 
-Software is furnished to do so, subject to the following conditions:
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
-if ( !class_exists('AdminPostNavigation') ) :
+if ( is_admin() && ! class_exists( 'c2c_AdminPostNavigation' ) ) :
 
-class AdminPostNavigation {
-	var $prev_text = '&laquo; Previous';
-	var $next_text = 'Next &raquo;';
+class c2c_AdminPostNavigation {
+
+	private static $prev_text = '';
+	private static $next_text = '';
+	private static $post_statuses     = array( 'draft', 'future', 'pending', 'private', 'publish' ); // Filterable later
+	private static $post_statuses_sql = '';
+
+	/**
+	 * Returns version of the plugin.
+	 *
+	 * @since 1.7
+	 */
+	public static function version() {
+		return '1.7.1';
+	}
 
 	/**
 	 * Class constructor: initializes class variables and adds actions and filters.
 	 */
-	function AdminPostNavigation() {
-		global $pagenow;
-		if ( is_admin() && 'post.php' == $pagenow ) {
-			$this->prev_text = __($this->prev_text);
-			$this->next_text = __($this->next_text);
-
-			add_action('admin_init', array(&$this,'admin_init'));
-			add_action('admin_head', array(&$this, 'add_css'));
-			add_action('admin_footer', array(&$this, 'add_js'));
-		}
+	public static function init() {
+		add_action( 'load-post.php', array( __CLASS__, 'register_post_page_hooks' ) );
 	}
 
-	function admin_init() {
-		add_meta_box('adminpostnav', 'Post Navigation', array(&$this, 'add_meta_box'), 'post', 'side', 'core');
+	/**
+	 * Filters/actions to hook on the admin post.php page.
+	 *
+	 * @since 1.7
+	 *
+	 */
+	public static function register_post_page_hooks() {
+		load_plugin_textdomain( 'admin-post-navigation', false, basename( dirname( __FILE__ ) ) . DIRECTORY_SEPARATOR . 'lang' );
+
+		self::$prev_text = __( '&larr; Previous', 'admin-post-navigation' );
+		self::$next_text = __( 'Next &rarr;', 'admin-post-navigation' );
+
+		add_action( 'admin_enqueue_scripts',      array( __CLASS__, 'add_css' ) );
+		add_action( 'admin_print_footer_scripts', array( __CLASS__, 'add_js' ) );
+		add_action( 'do_meta_boxes',              array( __CLASS__, 'do_meta_box' ), 10, 3 );
+	}
+
+	/**
+	 * Register meta box
+	 *
+	 * By default, the navigation is present for all post types.  Filter
+	 * 'c2c_admin_post_navigation_post_types' to limit its use.
+	 *
+	 * @param string $post_type The post type
+	 * @param string $type The mode for the meta box (normal, advanced, or side)
+	 * @param WP_Post $post The post
+	 * @return void
+	 */
+	public static function do_meta_box( $post_type, $type, $post ) {
+		$post_types = apply_filters( 'c2c_admin_post_navigation_post_types', get_post_types() );
+		if ( ! in_array( $post_type, $post_types ) )
+			return;
+
+		$post_statuses = apply_filters( 'c2c_admin_post_navigation_post_statuses', self::$post_statuses, $post_type, $post );
+		self::$post_statuses_sql = "'" . implode( "', '", array_map( 'esc_sql', $post_statuses ) ) . "'";
+		$label = self::_get_post_type_label( $post_type );
+		if ( in_array( $post->post_status, $post_statuses ) )
+			add_meta_box( 'adminpostnav', sprintf( __( '%s Navigation', 'admin-post-navigation' ), ucfirst( $post_type ) ), array( __CLASS__, 'add_meta_box' ), $post_type, 'side', 'core' );
 	}
 
 	/**
 	 * Adds the content for the post navigation meta_box.
+	 *
+	 * @param object $object
+	 * @param array $box
+	 * @return void (Text is echoed.)
 	 */
-	function add_meta_box( $object, $box ) {
+	public static function add_meta_box( $object, $box ) {
 		global $post_ID;
 		$display = '';
-		$context = $object->post_type;
-		$prev = $this->previous_post();
+
+		$context = self::_get_post_type_label( $object->post_type );
+
+		$prev = self::previous_post();
 		if ( $prev ) {
-			$post_title = attribute_escape(strip_tags($prev->post_title));
-			$display .= '<a href="' . get_edit_post_link($prev->ID) . 
-				"\" id='admin-post-nav-prev' title='Previous $context: $post_title' class='admin-post-nav-prev'>{$this->prev_text}</a>";
+			$post_title = strip_tags( get_the_title( $prev->ID ) ); /* If only the_title_attribute() accepted post ID as arg */
+			$display .= '<a href="' . get_edit_post_link( $prev->ID ) . '" id="admin-post-nav-prev" title="' .
+				esc_attr( sprintf( __( 'Previous %1$s: %2$s', 'admin-post-navigation' ), $context, $post_title ) ) .
+				'" class="admin-post-nav-prev add-new-h2">' . self::$prev_text . '</a>';
 		}
-		$next = $this->next_post();
+
+		$next = self::next_post();
 		if ( $next ) {
-			if ( !empty($display) )
-				$display .= ' | ';
-			$post_title = attribute_escape($next->post_title);
-			$display .= '<a href="' . get_edit_post_link($next->ID) .
-				"\" id='admin-post-nav-next' title='Next $context: $post_title' class='admin-post-nav-next'>{$this->next_text}</a>";
+			if ( ! empty( $display ) )
+				$display .= ' ';
+			$post_title = strip_tags( get_the_title( $next->ID ) );  /* If only the_title_attribute() accepted post ID as arg */
+			$display .= '<a href="' . get_edit_post_link( $next->ID ) .
+				'" id="admin-post-nav-next" title="' .
+				esc_attr( sprintf( __( 'Next %1$s: %2$s', 'admin-post-navigation' ), $context, $post_title ) ).
+				'" class="admin-post-nav-next add-new-h2">' . self::$next_text . '</a>';
 		}
+
 		$display = '<span id="admin-post-nav">' . $display . '</span>';
-		echo apply_filters('admin_post_nav', $display);
+		$display = apply_filters( 'admin_post_nav', $display ); /* Deprecated as of v1.5 */
+		echo apply_filters( 'c2c_admin_post_navigation_display', $display );
+	}
+
+	/**
+	 * Gets label for post type.
+	 *
+	 * @since 1.7
+	 *
+	 * @param string $post_type The post_type
+	 * @return string The label for the post_type
+	 */
+	public static function _get_post_type_label( $post_type ) {
+		$label = $post_type;
+		$post_type_object = get_post_type_object( $label );
+		if ( is_object( $post_type_object ) )
+			$label = $post_type_object->labels->singular_name;
+		return strtolower( $label );
 	}
 
 	/**
 	 * Outputs CSS within style tags
 	 */
-	function add_css() {
+	public static function add_css() {
 		echo <<<CSS
 		<style type="text/css">
-		#admin-post-nav {
-			margin-left:20px;
-		}
-		h2 #admin-post-nav {
-			font-size:0.6em;
-		}
+		#admin-post-nav {margin-left:20px;}
+		#adminpostnav #admin-post-nav {margin-left:0;}
+		h2 #admin-post-nav {font-size:0.6em;}
 		</style>
 
 CSS;
@@ -125,15 +184,15 @@ CSS;
 	 * for non-JS people is that the plugin's meta_box is shown and the
 	 * navigation links can be found there.
 	 */
-	function add_js() {
+	public static function add_js() {
 		echo <<<JS
 		<script type="text/javascript">
 		jQuery(document).ready(function($) {
 			$('#admin-post-nav').appendTo($('h2'));
 			$('#adminpostnav').hide();
 		});
-
 		</script>
+
 JS;
 	}
 
@@ -143,7 +202,7 @@ JS;
 	 * Currently, a previous/next post is determined by the next lower/higher
 	 * valid post based on relative sequential post ID and which the user can
 	 * edit.  Other post criteria such as post type (draft, pending, etc),
-	 * publish date, post author, category, etc, are not taken into 
+	 * publish date, post author, category, etc, are not taken into
 	 * consideration when determining the previous or next post.
 	 *
 	 * @param string $type (optional) Either '<' or '>', indicating previous or next post, respectively. Default is '<'.
@@ -151,34 +210,44 @@ JS;
 	 * @param int $limit (optional) Limit. Default is 15.
 	 * @return string
 	 */
-	function query($type = '<', $offset = 0, $limit = 15) {
+	public static function query( $type = '<', $offset = 0, $limit = 15 ) {
 		global $post_ID, $wpdb;
+
 		if ( $type != '<' )
 			$type = '>';
-		$offset = (int)$offset;
-		$limit = (int)$limit;
+		$offset = (int) $offset;
+		$limit  = (int) $limit;
 
-		$sql = "SELECT ID, post_title FROM $wpdb->posts WHERE post_type = 'post' ";
-		if ( $post_ID )
-			$sql .= "AND ID $type $post_ID ";
+		$post_type = esc_sql( get_post_type( $post_ID ) );
+		$sql = "SELECT ID, post_title FROM $wpdb->posts WHERE post_type = '$post_type' AND post_status IN (" . self::$post_statuses_sql . ') ';
+
+		// Determine order
+		if ( function_exists( 'is_post_type_hierarchical' ) && is_post_type_hierarchical( $post_type ) )
+			$orderby = 'post_title';
+		else
+			$orderby = 'ID';
+		$orderby = esc_sql( apply_filters( 'c2c_admin_post_navigation_orderby', $orderby, $post_type ) );
+		$post = get_post( $post_ID );
+		$sql .= "AND $orderby $type '{$post->$orderby}' ";
+
 		$sort = $type == '<' ? 'DESC' : 'ASC';
-		$sql .= "ORDER BY post_date $sort LIMIT $offset, $limit";
+		$sql .= "ORDER BY $orderby $sort LIMIT $offset, $limit";
 
 		// Find the first one the user can actually edit
-		$posts = $wpdb->get_results($sql);
+		$posts = $wpdb->get_results( $sql );
 		$result = false;
 		if ( $posts ) {
-			foreach ($posts as $post) {
-				if ( current_user_can('edit_post', $post->ID) ) {
+			foreach ( $posts as $post ) {
+				if ( current_user_can( 'edit_post', $post->ID ) ) {
 					$result = $post;
 					break;
 				}
 			}
-			if ( !$result ) { // The fetch did not yield a post editable by user, so query again.
+			if ( ! $result ) { // The fetch did not yield a post editable by user, so query again.
 				$offset += $limit;
 				// Double the limit each time (if haven't found a post yet, chances are we may not, so try to get through posts quicker)
 				$limit += $limit;
-				return $this->query($type, $offset, $limit);
+				return self::query( $type, $offset, $limit );
 			}
 		}
 		return $result;
@@ -191,8 +260,8 @@ JS;
 	 *
 	 * @return object The next post object.
 	 */
-	function next_post() {
-		return $this->query('>');
+	public static function next_post() {
+		return self::query( '>' );
 	}
 
 	/**
@@ -202,15 +271,12 @@ JS;
 	 *
 	 * @return object The previous post object.
 	 */
-	function previous_post() {
-		return $this->query('<');
+	public static function previous_post() {
+		return self::query( '<' );
 	}
 
-} // end AdminPostNavigation
+} // end c2c_AdminPostNavigation
+
+c2c_AdminPostNavigation::init();
 
 endif; // end if !class_exists()
-
-if ( class_exists('AdminPostNavigation') )
-	new AdminPostNavigation();
-
-?>
