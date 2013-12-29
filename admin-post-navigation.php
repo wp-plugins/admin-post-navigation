@@ -2,11 +2,11 @@
 /**
  * @package Admin_Post_Navigation
  * @author Scott Reilly
- * @version 1.7.1
+ * @version 1.8
  */
 /*
 Plugin Name: Admin Post Navigation
-Version: 1.7.1
+Version: 1.8
 Plugin URI: http://coffee2code.com/wp-plugins/admin-post-navigation/
 Author: Scott Reilly
 Author URI: http://coffee2code.com/
@@ -16,18 +16,24 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Description: Adds links to navigate to the next and previous posts when editing a post in the WordPress admin.
 
-Compatible with WordPress 3.0 through 3.4+.
+Compatible with WordPress 3.0 through 3.8+.
 
 =>> Read the accompanying readme.txt file for instructions and documentation.
 =>> Also, visit the plugin's homepage for additional information and updates.
-=>> Or visit: http://wordpress.org/extend/plugins/admin-post-navigation/
+=>> Or visit: http://wordpress.org/plugins/admin-post-navigation/
 
 TODO:
+	* Hide screen option checkbox for metabox if metabox is being hidden
 	* Add screen option allowing user selection of post navigation order
+	* Add unit tests
+	* Put CSS into enqueuable .css file
+	* Put JS into enqueueable .js file
+	* Add dropdown to post nav links to allow selecting different types of things
+	  to navigate to (e.g. next draft (if looking at a draft), next in category X)
 */
 
 /*
-	Copyright (c) 2008-2012 by Scott Reilly (aka coffee2code)
+	Copyright (c) 2008-2014 by Scott Reilly (aka coffee2code)
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -36,13 +42,15 @@ TODO:
 
 	This program is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
+
+defined( 'ABSPATH' ) or die();
 
 if ( is_admin() && ! class_exists( 'c2c_AdminPostNavigation' ) ) :
 
@@ -59,7 +67,7 @@ class c2c_AdminPostNavigation {
 	 * @since 1.7
 	 */
 	public static function version() {
-		return '1.7.1';
+		return '1.8';
 	}
 
 	/**
@@ -76,11 +84,15 @@ class c2c_AdminPostNavigation {
 	 *
 	 */
 	public static function register_post_page_hooks() {
+
+		// Load textdomain
 		load_plugin_textdomain( 'admin-post-navigation', false, basename( dirname( __FILE__ ) ) . DIRECTORY_SEPARATOR . 'lang' );
 
+		// Set translatable strings
 		self::$prev_text = __( '&larr; Previous', 'admin-post-navigation' );
 		self::$next_text = __( 'Next &rarr;', 'admin-post-navigation' );
 
+		// Register hooks
 		add_action( 'admin_enqueue_scripts',      array( __CLASS__, 'add_css' ) );
 		add_action( 'admin_print_footer_scripts', array( __CLASS__, 'add_js' ) );
 		add_action( 'do_meta_boxes',              array( __CLASS__, 'do_meta_box' ), 10, 3 );
@@ -166,14 +178,15 @@ class c2c_AdminPostNavigation {
 	 * Outputs CSS within style tags
 	 */
 	public static function add_css() {
-		echo <<<CSS
+		echo <<<HTML
 		<style type="text/css">
 		#admin-post-nav {margin-left:20px;}
 		#adminpostnav #admin-post-nav {margin-left:0;}
 		h2 #admin-post-nav {font-size:0.6em;}
+		.inside #admin-post-nav a {top:0;margin-top:4px;display:inline-block;}
 		</style>
 
-CSS;
+HTML;
 	}
 
 	/**
@@ -189,7 +202,7 @@ CSS;
 		<script type="text/javascript">
 		jQuery(document).ready(function($) {
 			$('#admin-post-nav').appendTo($('h2'));
-			$('#adminpostnav').hide();
+			$('#adminpostnav, label[for="adminpostnav-hide"]').hide();
 		});
 		</script>
 
